@@ -13,7 +13,6 @@ import java.util.UUID;
 @Repository
 public interface ConversationMongoRepository extends MongoRepository<ConversationMongo, String> {
     Optional<ConversationMongo> findById(String id);
-    List<ConversationMongo> findByUserId(String userId);
     Page<ConversationMongo> findByUserId(String userId, Pageable pageable);
 }
 

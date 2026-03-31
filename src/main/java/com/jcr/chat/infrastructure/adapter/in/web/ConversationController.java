@@ -33,6 +33,15 @@ public class ConversationController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/conversations/{id}")
+    public ResponseEntity<ConversationResponseDTO> getConversationById(
+            @PathVariable UUID id) {
+
+        ConversationResponseDTO response = conversationUserCase.getById(id);
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{conversationId}/interactions")
     public ResponseEntity<ConversationResponseDTO> createConversation(
             @PathVariable UUID conversationId,

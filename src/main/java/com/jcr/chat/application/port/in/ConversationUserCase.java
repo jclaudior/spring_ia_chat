@@ -16,4 +16,6 @@ public interface ConversationUserCase {
     ConversationResponseDTO addInteraction(UUID conversationId, ConversationRequestDTO conversationRequestDTO);
 
     PaginationConversationResponseDTO listByUserId(UUID userId, int page, int limit);
+
+    ConversationResponseDTO getById(UUID conversationId);
 }

@@ -113,6 +113,14 @@ public class ConversationService implements ConversationUserCase {
                 .build();
     }
 
+    @Override
+    public ConversationResponseDTO getById(UUID conversationId) {
+        ConversationMongo conversation = repository.findById(conversationId.toString())
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        return mapper.toDTO(conversation);
+    }
+
     // =========================
     // Core Methods
     // =========================
