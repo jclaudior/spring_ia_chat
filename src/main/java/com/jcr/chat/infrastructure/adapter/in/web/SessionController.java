@@ -13,7 +13,7 @@ import java.util.UUID;
 import static reactor.netty.http.HttpConnectionLiveness.log;
 
 @RestController
-@RequestMapping("/session")
+@RequestMapping("/sessions")
 public class SessionController {
 
     @Autowired
@@ -25,7 +25,7 @@ public class SessionController {
     @PostMapping
     public ResponseEntity<SessionResponseDTO> save (@RequestBody SessionRequestDTO sessionRequestDTO){
         SessionResponseDTO sessionResponseDTO = sessionUseCase.createSession(sessionRequestDTO);
-        URI location = URI.create("/session/" + sessionResponseDTO.getSessionId());
+        URI location = URI.create("/sessions/" + sessionResponseDTO.getSessionId());
         return ResponseEntity.created(location).body(sessionResponseDTO);
     }
 
@@ -43,7 +43,7 @@ public class SessionController {
     }
 
 
-    @PostMapping("/{sessionId}/conversation")
+    @PostMapping("/{sessionId}/conversations")
     public ResponseEntity<ConversationResponseDTO> createConversation(
             @PathVariable UUID sessionId,
             @RequestBody ConversationRequestDTO conversationRequestDTO) {
@@ -52,7 +52,7 @@ public class SessionController {
 
         ConversationResponseDTO response = conversationUserCase.createConversation(sessionId, conversationRequestDTO);
 
-        URI location = URI.create("/conversation/" + response.getId());
+        URI location = URI.create("/conversations/" + response.getId());
         return ResponseEntity.created(location).body(response);
     }
 }

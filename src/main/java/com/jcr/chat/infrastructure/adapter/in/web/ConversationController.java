@@ -3,6 +3,7 @@ package com.jcr.chat.infrastructure.adapter.in.web;
 import com.jcr.chat.application.port.in.ConversationUserCase;
 import com.jcr.chat.domain.model.dto.ConversationRequestDTO;
 import com.jcr.chat.domain.model.dto.ConversationResponseDTO;
+import com.jcr.chat.domain.model.dto.PaginationConversationResponseDTO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,20 +15,32 @@ import java.util.UUID;
 
 @Log4j2
 @RestController
-@RequestMapping("/conversation")
+@RequestMapping("/conversations")
 public class ConversationController {
 
     @Autowired
     private ConversationUserCase conversationUserCase;
 
-    @PostMapping("/{conversationId}/interaction")
+    @GetMapping
+    public ResponseEntity<PaginationConversationResponseDTO> listConversations(
+            @RequestParam UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        PaginationConversationResponseDTO response =
+                conversationUserCase.listByUserId(userId, page, limit);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{conversationId}/interactions")
     public ResponseEntity<ConversationResponseDTO> createConversation(
             @PathVariable UUID conversationId,
             @RequestBody ConversationRequestDTO conversationRequestDTO) {
 
         ConversationResponseDTO response = conversationUserCase.addInteraction(conversationId, conversationRequestDTO);
 
-        URI location = URI.create("/conversation/" + response.getId());
+        URI location = URI.create("/conversations/" + response.getId());
         return ResponseEntity.created(location).body(response);
 
     }

@@ -2,15 +2,16 @@ package com.jcr.chat.application.service;
 
 import com.jcr.chat.application.port.in.ConversationUserCase;
 import com.jcr.chat.domain.model.ConversationMongo;
-import com.jcr.chat.domain.model.dto.ConversationRequestDTO;
-import com.jcr.chat.domain.model.dto.ConversationResponseDTO;
-import com.jcr.chat.domain.model.dto.SessionRequestDTO;
-import com.jcr.chat.domain.model.dto.SessionResponseDTO;
+import com.jcr.chat.domain.model.dto.*;
 import com.jcr.chat.domain.model.mapper.ConversationMapper;
 import com.jcr.chat.infrastructure.adapter.out.persistence.ConversationMongoRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.document.Document;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -82,6 +83,34 @@ public class ConversationService implements ConversationUserCase {
         updateConversation(conversation, request.getUserMessage(), response);
 
         return mapper.toDTO(repository.save(conversation));
+    }
+
+    @Override
+    public PaginationConversationResponseDTO listByUserId(UUID userId, int page, int limit) {
+
+        Pageable pageable = PageRequest.of(page, limit, Sort.by(Sort.Direction.DESC, "updatedAt"));
+
+        Page<ConversationMongo> pageResult =
+                repository.findByUserId(userId.toString(), pageable);
+
+        List<ConversationResponseDTO> content = pageResult.getContent()
+                .stream()
+                .map(mapper::toDTO)
+                .collect(Collectors.toList());
+
+        PaginationDTO pagination = PaginationDTO.builder()
+                .limit(limit)
+                .offset(page * limit)
+                .pageNumber(page)
+                .pageElements(pageResult.getNumberOfElements())
+                .totalPages(pageResult.getTotalPages())
+                .totalElements(pageResult.getTotalElements())
+                .build();
+
+        return PaginationConversationResponseDTO.builder()
+                .content(content)
+                .pageable(pagination)
+                .build();
     }
 
     // =========================
