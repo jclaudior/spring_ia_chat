@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ public class ConversationResponseDTO implements Serializable {
     private UUID userId;
     private String title;
     private List<InteractionDTO> interactions;
-    private Long createdAt;
+    private Instant createdAt;
 
     @Override
     protected Object clone() throws CloneNotSupportedException {

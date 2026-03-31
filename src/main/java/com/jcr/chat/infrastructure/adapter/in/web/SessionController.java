@@ -42,10 +42,7 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * POST /conversation/{sessionId}/conversation
-     * Cria uma nova conversa com base em uma sessão e primeira mensagem do usuário
-     */
+
     @PostMapping("/{sessionId}/conversation")
     public ResponseEntity<ConversationResponseDTO> createConversation(
             @PathVariable UUID sessionId,

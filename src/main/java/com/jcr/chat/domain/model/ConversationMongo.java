@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,11 +20,12 @@ import java.util.UUID;
 public class ConversationMongo implements Serializable {
     @Id
     private String id; // MongoDB usa String para ID
+    private String title;
     private String userId;
     private String sessionId;
     private List<Interaction> interactions;
-    private Long createdAt;
-    private Long updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
     @Data
     @Builder

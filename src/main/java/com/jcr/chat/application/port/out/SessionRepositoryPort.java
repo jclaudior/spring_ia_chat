@@ -13,4 +13,5 @@ public interface SessionRepositoryPort {
     Optional<SessionRedis> findByUserId(UUID userId);
 
     void delete(UUID sessionId);
+
 }

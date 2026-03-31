@@ -7,4 +7,6 @@ import java.util.UUID;
 
 public interface ConversationUserCase {
     ConversationResponseDTO createConversation(UUID sessionId, ConversationRequestDTO conversationRequestDTO);
+
+    ConversationResponseDTO addInteraction(UUID conversationId, ConversationRequestDTO conversationRequestDTO);
 }

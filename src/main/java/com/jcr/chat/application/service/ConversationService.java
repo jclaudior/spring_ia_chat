@@ -4,88 +4,196 @@ import com.jcr.chat.application.port.in.ConversationUserCase;
 import com.jcr.chat.domain.model.ConversationMongo;
 import com.jcr.chat.domain.model.dto.ConversationRequestDTO;
 import com.jcr.chat.domain.model.dto.ConversationResponseDTO;
+import com.jcr.chat.domain.model.dto.SessionRequestDTO;
 import com.jcr.chat.domain.model.dto.SessionResponseDTO;
 import com.jcr.chat.domain.model.mapper.ConversationMapper;
 import com.jcr.chat.infrastructure.adapter.out.persistence.ConversationMongoRepository;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.document.Document;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class ConversationService implements ConversationUserCase {
-    @Autowired
-    private SessionService sessionService;
 
-    @Autowired
-    private ChatClient chatClient;
+    private static final String SYSTEM_PROMPT = """
+        You are an intelligent assistant.
 
-    @Autowired
-    private KnowledgeBaseService knowledgeBaseService;
+        Rules:
+        - Always prioritize information from CONTEXT.
+        - If the answer is not in the context, say clearly you don't know.
+        - Do not hallucinate.
+        - Keep answers concise and direct.
+        - Use conversation history to maintain continuity.
 
-    @Autowired
-    private ConversationMongoRepository conversationRepository;
+        Output:
+        - Answer the user question
+        - Optionally infer user intent (short)
+        """;
 
-    @Autowired
-    private ConversationMapper mapper;
+    private static final int HISTORY_LIMIT = 10;
+    private static final int CONTEXT_LIMIT = 3;
 
-    @Override
-    public ConversationResponseDTO createConversation(UUID sessionId, ConversationRequestDTO conversationRequestDTO) {
-        SessionResponseDTO sessionResponse = sessionService.findById(sessionId);
+    private final SessionService sessionService;
+    private final ChatClient chatClient;
+    private final KnowledgeBaseService knowledgeBaseService;
+    private final ConversationMongoRepository repository;
+    private final ConversationMapper mapper;
 
-        String context = searchContext(conversationRequestDTO.getUserMessage());
-
-        String agentResponse = chatClient.prompt()
-                .messages(List.of(
-                        new SystemMessage("You are an intelligent assistant that answers based on provided context and conversation history.\n" +
-                                "                        If the answer is not found in the context, say that you could not find the information.\n" +
-                                "                        Be helpful, concise and professional."),
-                        new SystemMessage("CONTEXT:\n" + context),
-                        new UserMessage(conversationRequestDTO.getUserMessage())
-                ))
-                .call()
-                .content();
-
-        ConversationMongo conversationMongo = ConversationMongo.builder()
-                .id(UUID.randomUUID().toString())
-                .userId(sessionResponse.getUserId().toString())
-                .sessionId(sessionResponse.getSessionId().toString())
-                .interactions(List.of(
-                        ConversationMongo.Interaction.builder()
-                                .author("User")
-                                .message(conversationRequestDTO.getUserMessage())
-                                .build(),
-                        ConversationMongo.Interaction.builder()
-                                .author("Agent")
-                                .message(agentResponse)
-                                .build()
-                ))
-                .build();
-        conversationMongo = conversationRepository.save(conversationMongo);
-        return mapper.toDTO(conversationMongo);
+    public ConversationService(SessionService sessionService,
+                               ChatClient chatClient,
+                               KnowledgeBaseService knowledgeBaseService,
+                               ConversationMongoRepository repository,
+                               ConversationMapper mapper) {
+        this.sessionService = sessionService;
+        this.chatClient = chatClient;
+        this.knowledgeBaseService = knowledgeBaseService;
+        this.repository = repository;
+        this.mapper = mapper;
     }
 
+    @Override
+    public ConversationResponseDTO createConversation(UUID sessionId, ConversationRequestDTO request) {
+        SessionResponseDTO session = getOrCreateSession(sessionId);
+
+        String context = searchContext(request.getUserMessage());
+        String response = generateResponse(buildMessages(null, context, request.getUserMessage()));
+
+        ConversationMongo conversation = buildNewConversation(session, request.getUserMessage(), response);
+
+        return mapper.toDTO(repository.save(conversation));
+    }
+
+    @Override
+    public ConversationResponseDTO addInteraction(UUID conversationId, ConversationRequestDTO request) {
+        ConversationMongo conversation = findConversation(conversationId);
+
+        getOrCreateSession(UUID.fromString(conversation.getSessionId()));
+
+        String context = searchContext(request.getUserMessage());
+
+        List<Message> messages = buildMessages(conversation, context, request.getUserMessage());
+        String response = generateResponse(messages);
+
+        updateConversation(conversation, request.getUserMessage(), response);
+
+        return mapper.toDTO(repository.save(conversation));
+    }
+
+    // =========================
+    // Core Methods
+    // =========================
+
+    private List<Message> buildMessages(ConversationMongo conversation, String context, String userMessage) {
+        List<Message> messages = new ArrayList<>();
+
+        messages.add(new SystemMessage(SYSTEM_PROMPT));
+        messages.add(new SystemMessage("CONTEXT:\n" + context));
+
+        if (conversation != null) {
+            getLastInteractions(conversation.getInteractions())
+                    .forEach(interaction -> messages.add(mapToMessage(interaction)));
+        }
+
+        messages.add(new UserMessage(userMessage));
+
+        return messages;
+    }
+
+    private String generateResponse(List<Message> messages) {
+        return chatClient.prompt()
+                .messages(messages)
+                .call()
+                .content();
+    }
+
+    private void updateConversation(ConversationMongo conversation, String userMessage, String response) {
+        conversation.setUpdatedAt(Instant.now());
+
+        conversation.getInteractions().addAll(List.of(
+                createInteraction("user", userMessage),
+                createInteraction("assistant", response)
+        ));
+    }
+
+    private ConversationMongo buildNewConversation(SessionResponseDTO session,
+                                                   String userMessage,
+                                                   String response) {
+        return ConversationMongo.builder()
+                .id(UUID.randomUUID().toString())
+                .title(generateTitleFallback(userMessage))
+                .userId(session.getUserId().toString())
+                .sessionId(session.getSessionId().toString())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .interactions(new ArrayList<>(List.of(
+                        createInteraction("user", userMessage),
+                        createInteraction("assistant", response)
+                )))
+                .build();
+    }
+
+    // =========================
+    // Context / RAG
+    // =========================
+
     private String searchContext(String question) {
-        List<Document> documents = knowledgeBaseService.search(question, 3);
+        List<Document> documents = knowledgeBaseService.search(question, CONTEXT_LIMIT);
 
         if (documents.isEmpty()) {
             return "No relevant documents found in knowledge base.";
         }
 
         return documents.stream()
-                .map(doc -> {
-                    String content = doc.getText();
-                    String metadata = doc.getMetadata().entrySet().stream()
-                            .map(e -> e.getKey() + ": " + e.getValue())
-                            .collect(Collectors.joining(", "));
-                    return "Document: " + metadata + "\nContent: " + content;
-                })
-                .collect(Collectors.joining("\n\n---\n\n"));
+                .map(doc -> """
+                        ### DOCUMENT
+                        Metadata: %s
+                        Content:
+                        %s
+                        """.formatted(doc.getMetadata(), doc.getText()))
+                .collect(Collectors.joining("\n\n"));
+    }
+
+    // =========================
+    // Helpers
+    // =========================
+
+    private SessionResponseDTO getOrCreateSession(UUID sessionId) {
+        SessionResponseDTO session = sessionService.findById(sessionId);
+        sessionService.createSession(SessionRequestDTO.builder()
+                .userId(session.getUserId())
+                .build());
+        return session;
+    }
+
+    private ConversationMongo findConversation(UUID conversationId) {
+        return repository.findById(conversationId.toString())
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+    }
+
+    private List<ConversationMongo.Interaction> getLastInteractions(List<ConversationMongo.Interaction> interactions) {
+        int fromIndex = Math.max(0, interactions.size() - HISTORY_LIMIT);
+        return interactions.subList(fromIndex, interactions.size());
+    }
+
+    private Message mapToMessage(ConversationMongo.Interaction interaction) {
+        return "user".equalsIgnoreCase(interaction.getAuthor())
+                ? new UserMessage(interaction.getMessage())
+                : new AssistantMessage(interaction.getMessage());
+    }
+
+    private ConversationMongo.Interaction createInteraction(String author, String message) {
+        return ConversationMongo.Interaction.builder()
+                .author(author)
+                .message(message)
+                .build();
+    }
+
+    private String generateTitleFallback(String message) {
+        return message.length() > 40 ? message.substring(0, 40) + "..." : message;
     }
 }
