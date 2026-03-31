@@ -59,7 +59,7 @@ public class ConversationService implements ConversationUserCase {
 
     @Override
     public ConversationResponseDTO createConversation(UUID sessionId, ConversationRequestDTO request) {
-        SessionResponseDTO session = getOrCreateSession(sessionId);
+        SessionResponseDTO session = getAndUpdateSession(sessionId);
 
         String context = searchContext(request.getUserMessage());
         String response = generateResponse(buildMessages(null, context, request.getUserMessage()));
@@ -73,7 +73,7 @@ public class ConversationService implements ConversationUserCase {
     public ConversationResponseDTO addInteraction(UUID conversationId, ConversationRequestDTO request) {
         ConversationMongo conversation = findConversation(conversationId);
 
-        getOrCreateSession(UUID.fromString(conversation.getSessionId()));
+        getAndUpdateSession(UUID.fromString(conversation.getSessionId()));
 
         String context = searchContext(request.getUserMessage());
 
@@ -199,7 +199,7 @@ public class ConversationService implements ConversationUserCase {
     // Helpers
     // =========================
 
-    private SessionResponseDTO getOrCreateSession(UUID sessionId) {
+    private SessionResponseDTO getAndUpdateSession(UUID sessionId) {
         SessionResponseDTO session = sessionService.findById(sessionId);
         sessionService.createSession(SessionRequestDTO.builder()
                 .userId(session.getUserId())
