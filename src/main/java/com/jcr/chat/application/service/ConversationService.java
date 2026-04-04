@@ -8,6 +8,7 @@ import com.jcr.chat.infrastructure.adapter.out.persistence.ConversationMongoRepo
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -62,7 +63,7 @@ public class ConversationService implements ConversationUserCase {
         SessionResponseDTO session = getAndUpdateSession(sessionId);
 
         String context = searchContext(request.getUserMessage());
-        String response = generateResponse(buildMessages(null, context, request.getUserMessage()));
+        String response = generateResponse(buildMessages(null, context, request.getUserMessage(), session));
 
         ConversationMongo conversation = buildNewConversation(session, request.getUserMessage(), response);
 
@@ -72,12 +73,13 @@ public class ConversationService implements ConversationUserCase {
     @Override
     public ConversationResponseDTO addInteraction(UUID conversationId, ConversationRequestDTO request) {
         ConversationMongo conversation = findConversation(conversationId);
+        SessionResponseDTO session = getAndUpdateSession(UUID.fromString(conversation.getSessionId()));
 
         getAndUpdateSession(UUID.fromString(conversation.getSessionId()));
 
         String context = searchContext(request.getUserMessage());
 
-        List<Message> messages = buildMessages(conversation, context, request.getUserMessage());
+        List<Message> messages = buildMessages(conversation, context, request.getUserMessage(), session);
         String response = generateResponse(messages);
 
         updateConversation(conversation, request.getUserMessage(), response);
@@ -125,11 +127,13 @@ public class ConversationService implements ConversationUserCase {
     // Core Methods
     // =========================
 
-    private List<Message> buildMessages(ConversationMongo conversation, String context, String userMessage) {
+    private List<Message> buildMessages(ConversationMongo conversation, String context, String userMessage, SessionResponseDTO session) {
         List<Message> messages = new ArrayList<>();
 
         messages.add(new SystemMessage(SYSTEM_PROMPT));
+        messages.add(new SystemMessage("userId:" + session.getUserId()));
         messages.add(new SystemMessage("CONTEXT:\n" + context));
+
 
         if (conversation != null) {
             getLastInteractions(conversation.getInteractions())

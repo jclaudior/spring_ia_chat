@@ -32,6 +32,18 @@ spring:
         distance-type: COSINE_DISTANCE
         dimensions: 1536
         max-document-batch-size: 10000
+    mcp:
+      client:
+        enabled: true
+        name: my-mcp-client
+        version: 1.0.0
+        request-timeout: 30s
+        type: SYNC  # or ASYNC for reactive applications
+        streamable-http:
+          connections:
+            server1:
+              url: http://localhost:8082
+              endpoint: /mcp
 
 server:
   servlet:
@@ -40,3 +52,4 @@ server:
 logging:
   level:
     org.springframework.data.mongodb: DEBUG
+    org.springframework.ai: DEBUG
