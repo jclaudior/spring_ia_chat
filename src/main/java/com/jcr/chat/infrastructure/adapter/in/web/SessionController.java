@@ -2,7 +2,10 @@ package com.jcr.chat.infrastructure.adapter.in.web;
 
 import com.jcr.chat.application.port.in.ConversationUserCase;
 import com.jcr.chat.application.port.in.SessionUseCase;
-import com.jcr.chat.domain.model.dto.*;
+import com.jcr.chat.domain.model.dto.ConversationRequestDTO;
+import com.jcr.chat.domain.model.dto.ConversationResponseDTO;
+import com.jcr.chat.domain.model.dto.SessionRequestDTO;
+import com.jcr.chat.domain.model.dto.SessionResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

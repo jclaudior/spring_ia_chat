@@ -6,9 +6,11 @@ import com.jcr.chat.domain.model.dto.*;
 import com.jcr.chat.domain.model.mapper.ConversationMapper;
 import com.jcr.chat.infrastructure.adapter.out.persistence.ConversationMongoRepository;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.*;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,7 +18,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
