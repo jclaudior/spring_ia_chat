@@ -16,6 +16,8 @@ public class ChatClientConfig {
     ) {
         return ChatClient
                 .builder(chatModel)
+                .temperature(0.7)   
+                .topK(50) 
                 .defaultToolCallbacks(toolCallbackProvider)
                 .build();
     }
