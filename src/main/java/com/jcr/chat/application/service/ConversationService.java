@@ -193,6 +193,8 @@ public class ConversationService implements ConversationUserCase {
             return "No relevant documents found in knowledge base.";
         }
 
+        System.out.println("Teste");
+
         return documents.stream()
                 .map(doc -> """
                         ### DOCUMENT
